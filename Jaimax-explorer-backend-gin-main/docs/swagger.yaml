@@ -1,0 +1,174 @@
+basePath: /api/v1
+definitions:
+  models.Block:
+    properties:
+      created_at:
+        type: string
+      hash:
+        type: string
+      height:
+        type: integer
+      proposer_address:
+        type: string
+      time:
+        type: string
+      tx_count:
+        type: integer
+    type: object
+  models.PaginatedResponse:
+    properties:
+      data: {}
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Blockchain explorer REST API
+  title: Jaimax Explorer API
+  version: "1.0"
+paths:
+  /blocks:
+    get:
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Per page
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PaginatedResponse'
+      summary: List Blocks
+      tags:
+      - blocks
+  /blocks/{height}:
+    get:
+      description: Returns a single block by its height
+      parameters:
+      - description: Block height
+        in: path
+        name: height
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Block'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get block by height
+      tags:
+      - Blocks
+  /blocks/{height}/transactions:
+    get:
+      description: Returns all transactions in a block enriched with their bank transfer
+        legs. MsgMultiSend with 5 outputs shows all 5 transfer rows.
+      parameters:
+      - description: Block height
+        in: path
+        name: height
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get transactions in a block
+      tags:
+      - Blocks
+  /blocks/{height}/transfers:
+    get:
+      description: Returns a flat list of all bank transfers in a block (all money
+        movements without grouping by tx)
+      parameters:
+      - description: Block height
+        in: path
+        name: height
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get transfers in a block
+      tags:
+      - Blocks
+  /blocks/latest:
+    get:
+      description: Returns the most recently indexed block
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Block'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get latest block
+      tags:
+      - Blocks
+swagger: "2.0"

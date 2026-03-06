@@ -1,0 +1,1916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChainScope — Blockchain Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ─── Variables ─────────────────────────────────────────────── */
+:root {
+  --bg:       #050810;
+  --bg2:      #080d16;
+  --surface:  #0c1420;
+  --card:     #0f1a28;
+  --card2:    #121f30;
+  --border:   rgba(0,200,255,0.1);
+  --border2:  rgba(0,200,255,0.06);
+  --cyan:     #00c8ff;
+  --cyan2:    #00ffcc;
+  --amber:    #ffb020;
+  --red:      #ff4560;
+  --green:    #00e676;
+  --purple:   #9d7cff;
+  --text:     #cdd9e5;
+  --muted:    #4d6478;
+  --dim:      #2a3a4a;
+  --mono:     'IBM Plex Mono', monospace;
+  --sans:     'IBM Plex Sans', sans-serif;
+  --display:  'Clash Display', sans-serif;
+}
+
+/* ─── Reset ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Animated grid bg */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0,200,255,0.06) 0%, transparent 70%),
+    linear-gradient(rgba(0,200,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,200,255,0.025) 1px, transparent 1px);
+  background-size: 100%, 60px 60px, 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ─── Utility ───────────────────────────────────────────────── */
+.mono { font-family: var(--mono); }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flex { display: flex; }
+.items-center { align-items: center; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.text-cyan { color: var(--cyan); }
+.text-muted { color: var(--muted); }
+.text-green { color: var(--green); }
+.text-red { color: var(--red); }
+.text-amber { color: var(--amber); }
+.text-purple { color: var(--purple); }
+
+/* ─── Navbar ────────────────────────────────────────────────── */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  height: 60px;
+  background: rgba(5,8,16,0.88);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 28px;
+  gap: 0;
+}
+
+.nav-brand {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 40px;
+  flex-shrink: 0;
+}
+
+.brand-icon {
+  width: 30px; height: 30px;
+  background: linear-gradient(135deg, var(--cyan), var(--cyan2));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  box-shadow: 0 0 20px rgba(0,200,255,0.35);
+}
+
+.brand-name span { color: var(--cyan); }
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+}
+
+.nav-link {
+  padding: 7px 14px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s;
+  border: 1px solid transparent;
+}
+.nav-link:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+.nav-link.active { color: var(--cyan); background: rgba(0,200,255,0.08); border-color: rgba(0,200,255,0.15); }
+
+.nav-search {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 12px;
+  gap: 8px;
+  transition: border-color 0.2s;
+}
+.nav-search:focus-within { border-color: var(--cyan); }
+.nav-search input {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  outline: none;
+  width: 260px;
+  height: 34px;
+}
+.nav-search input::placeholder { color: var(--muted); }
+.nav-search-icon { color: var(--muted); font-size: 12px; }
+
+.nav-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: blink 2s ease-in-out infinite;
+  margin-left: 12px;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ─── Page ──────────────────────────────────────────────────── */
+#app { position: relative; z-index: 1; }
+.page { display: none; padding: 28px; max-width: 1400px; margin: 0 auto; animation: fadeIn 0.25s ease; }
+.page.active { display: block; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+/* ─── Page Header ───────────────────────────────────────────── */
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border2);
+}
+.page-title {
+  font-family: var(--display);
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.1;
+}
+.page-subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+/* ─── Stat Cards ────────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.stat-card:hover { border-color: var(--border); transform: translateY(-2px); }
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent-color, linear-gradient(90deg, var(--cyan), var(--cyan2)));
+  opacity: 0.7;
+}
+
+.stat-icon {
+  font-size: 22px;
+  margin-bottom: 12px;
+  display: block;
+}
+.stat-value {
+  font-family: var(--display);
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.stat-label { font-size: 11px; color: var(--muted); letter-spacing: 0.8px; text-transform: uppercase; }
+.stat-change { font-size: 11px; margin-top: 6px; }
+
+/* ─── Card ──────────────────────────────────────────────────── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border2);
+}
+
+.card-title {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title-icon {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+/* ─── Table ─────────────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+thead th {
+  padding: 11px 16px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border2);
+  white-space: nowrap;
+}
+tbody tr {
+  border-bottom: 1px solid var(--border2);
+  transition: background 0.15s;
+  cursor: pointer;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: rgba(0,200,255,0.03); }
+tbody td {
+  padding: 12px 16px;
+  vertical-align: middle;
+}
+
+/* ─── Badges ────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.badge-green { color: var(--green); border-color: rgba(0,230,118,0.25); background: rgba(0,230,118,0.07); }
+.badge-red { color: var(--red); border-color: rgba(255,69,96,0.25); background: rgba(255,69,96,0.07); }
+.badge-amber { color: var(--amber); border-color: rgba(255,176,32,0.25); background: rgba(255,176,32,0.07); }
+.badge-cyan { color: var(--cyan); border-color: rgba(0,200,255,0.25); background: rgba(0,200,255,0.07); }
+.badge-purple { color: var(--purple); border-color: rgba(157,124,255,0.25); background: rgba(157,124,255,0.07); }
+.badge-muted { color: var(--muted); border-color: var(--dim); background: rgba(77,100,120,0.1); }
+
+/* ─── Hash / Address display ────────────────────────────────── */
+.hash-link {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--cyan);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.hash-link:hover { color: var(--cyan2); text-decoration: underline; }
+
+.addr-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 2px 8px;
+  max-width: 180px;
+}
+.addr-pill .addr-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ─── Pagination ────────────────────────────────────────────── */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border2);
+  background: var(--bg2);
+}
+.page-info { font-size: 12px; color: var(--muted); }
+.page-btns { display: flex; gap: 6px; }
+.page-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--mono);
+  transition: all 0.15s;
+}
+.page-btn:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(0,200,255,0.06); }
+.page-btn:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+.page-btn.active { border-color: var(--cyan); color: var(--cyan); background: rgba(0,200,255,0.1); }
+
+/* ─── Detail Panel ──────────────────────────────────────────── */
+.detail-hero {
+  background: linear-gradient(135deg, var(--card) 0%, var(--bg2) 100%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+.detail-hero::after {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 180px; height: 180px;
+  background: radial-gradient(circle, rgba(0,200,255,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.detail-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.detail-field {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.detail-field-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.detail-field-value {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+  word-break: break-all;
+}
+
+/* ─── Tabs ──────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border2);
+  margin-bottom: 0;
+  padding: 0 20px;
+  background: var(--bg2);
+}
+.tab {
+  padding: 12px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ─── Block Height ──────────────────────────────────────────── */
+.block-height-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--amber);
+  background: rgba(255,176,32,0.08);
+  border: 1px solid rgba(255,176,32,0.2);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+/* ─── Progress Bar ──────────────────────────────────────────── */
+.progress-bar {
+  height: 4px;
+  background: var(--dim);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--cyan2));
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+/* ─── Validator Card ────────────────────────────────────────── */
+.validator-card {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.validator-card:hover {
+  border-color: var(--border);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+}
+.validator-rank {
+  position: absolute;
+  top: 14px; right: 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+.validator-avatar {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  margin-bottom: 14px;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 18px;
+  color: #fff;
+}
+.validator-name {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.validator-addr {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 14px;
+}
+.validator-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.validator-stat-item { }
+.validator-stat-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+.validator-stat-value { font-family: var(--mono); font-size: 13px; color: var(--text); font-weight: 500; }
+
+/* ─── Proposal Card ─────────────────────────────────────────── */
+.proposal-card {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 22px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 12px;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+.proposal-card:hover { border-color: var(--border); transform: translateX(3px); }
+
+.proposal-id-badge {
+  min-width: 56px;
+  height: 56px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--cyan);
+  flex-shrink: 0;
+}
+
+.proposal-body { flex: 1; min-width: 0; }
+.proposal-title {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.proposal-desc {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  margin-bottom: 12px;
+}
+
+.vote-bars { display: flex; gap: 8px; align-items: center; }
+.vote-bar-item { flex: 1; }
+.vote-bar-label { font-size: 10px; color: var(--muted); margin-bottom: 3px; display: flex; justify-content: space-between; }
+.vote-bar-label span { font-family: var(--mono); }
+
+/* ─── Wasm Code card ────────────────────────────────────────── */
+.wasm-code-card {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 18px;
+  cursor: pointer;
+  transition: all 0.18s;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.wasm-code-card:hover { border-color: var(--border); background: var(--card2); }
+.wasm-code-icon {
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(157,124,255,0.15), rgba(0,200,255,0.1));
+  border: 1px solid rgba(157,124,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.wasm-code-id { font-family: var(--display); font-size: 17px; font-weight: 700; color: var(--purple); }
+.wasm-code-label { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+/* ─── Skeleton loader ───────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--card2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 4px;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+.sk-row { height: 48px; margin-bottom: 1px; }
+.sk-stat { height: 90px; border-radius: 12px; margin-bottom: 16px; }
+
+/* ─── Empty / Error ─────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--muted);
+  gap: 10px;
+}
+.empty-icon { font-size: 36px; opacity: 0.4; }
+.empty-msg { font-size: 14px; }
+.empty-sub { font-size: 12px; opacity: 0.7; }
+
+.error-box {
+  background: rgba(255,69,96,0.06);
+  border: 1px solid rgba(255,69,96,0.2);
+  color: var(--red);
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px;
+}
+
+/* ─── Toast ─────────────────────────────────────────────────── */
+#toast {
+  position: fixed;
+  bottom: 28px; right: 28px;
+  background: var(--card);
+  border: 1px solid var(--green);
+  color: var(--green);
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: var(--mono);
+  z-index: 9999;
+  transform: translateY(80px);
+  opacity: 0;
+  transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+#toast.show { transform: translateY(0); opacity: 1; }
+
+/* ─── Config bar ────────────────────────────────────────────── */
+.config-bar {
+  background: rgba(0,200,255,0.05);
+  border-bottom: 1px solid rgba(0,200,255,0.1);
+  padding: 8px 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.config-bar input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: 11px;
+  outline: none;
+  width: 280px;
+  transition: border-color 0.2s;
+}
+.config-bar input:focus { border-color: var(--cyan); }
+
+/* ─── Dashboard grid ────────────────────────────────────────── */
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 0;
+}
+@media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr; } }
+
+.validators-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  padding: 20px;
+}
+
+/* ─── Live indicator ────────────────────────────────────────── */
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: var(--green);
+  background: rgba(0,230,118,0.08);
+  border: 1px solid rgba(0,230,118,0.2);
+  border-radius: 20px;
+  padding: 2px 8px;
+}
+.live-dot {
+  width: 5px; height: 5px;
+  background: var(--green);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--green);
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+/* ─── Back button ───────────────────────────────────────────── */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border2);
+  background: var(--card);
+  transition: all 0.15s;
+  margin-bottom: 20px;
+}
+.back-btn:hover { color: var(--cyan); border-color: rgba(0,200,255,0.2); }
+
+/* ─── JSON viewer ───────────────────────────────────────────── */
+.json-view {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.8;
+  padding: 16px;
+  overflow-x: auto;
+  background: var(--bg);
+  border-radius: 8px;
+}
+.jk { color: #79c0ff; }
+.jv-str { color: #a8daff; }
+.jv-num { color: #ffa657; }
+.jv-bool { color: var(--purple); font-weight: 600; }
+.jv-null { color: var(--muted); font-style: italic; }
+
+/* ─── Search results overlay ─────────────────────────────────── */
+.search-dropdown {
+  position: absolute;
+  top: 50px; right: 28px;
+  width: 400px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  z-index: 300;
+  overflow: hidden;
+  display: none;
+}
+.search-dropdown.show { display: block; animation: fadeIn 0.15s ease; }
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border2);
+  transition: background 0.15s;
+}
+.search-result-item:last-child { border-bottom: none; }
+.search-result-item:hover { background: rgba(0,200,255,0.05); }
+.search-result-type {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  min-width: 60px;
+  text-align: center;
+}
+.type-block { background: rgba(255,176,32,0.1); color: var(--amber); }
+.type-transaction { background: rgba(0,200,255,0.1); color: var(--cyan); }
+.type-validator { background: rgba(157,124,255,0.1); color: var(--purple); }
+.type-contract { background: rgba(0,230,118,0.1); color: var(--green); }
+.type-address { background: rgba(255,69,96,0.1); color: var(--red); }
+.search-result-value { font-family: var(--mono); font-size: 11px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+
+/* Chain selector in config */
+.chain-tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: rgba(0,200,255,0.08);
+  border: 1px solid rgba(0,200,255,0.15);
+  color: var(--cyan);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* ─── Tx detail row ─────────────────────────────────────────── */
+.tx-detail-kv {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 0;
+  border-bottom: 1px solid var(--border2);
+}
+.tx-detail-kv:last-child { border-bottom: none; }
+.tx-kv-key {
+  padding: 13px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--bg2);
+  border-right: 1px solid var(--border2);
+}
+.tx-kv-val {
+  padding: 13px 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  word-break: break-all;
+}
+</style>
+</head>
+<body>
+
+<!-- Config Bar -->
+<div class="config-bar">
+  <span>API Endpoint</span>
+  <input type="text" id="apiBase" value="http://localhost:8080/api/v1" placeholder="http://localhost:8080/api/v1">
+  <span class="chain-tag" id="chainTag">MAINNET</span>
+  <div class="nav-dot"></div>
+  <span id="connStatus">connecting...</span>
+</div>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <a class="nav-brand" onclick="navigate('dashboard')">
+    <div class="brand-icon">◈</div>
+    <span>Chain<span>Scope</span></span>
+  </a>
+  <div class="nav-links">
+    <div class="nav-link" onclick="navigate('dashboard')" data-page="dashboard">Dashboard</div>
+    <div class="nav-link" onclick="navigate('blocks')" data-page="blocks">Blocks</div>
+    <div class="nav-link" onclick="navigate('transactions')" data-page="transactions">Transactions</div>
+    <div class="nav-link" onclick="navigate('validators')" data-page="validators">Validators</div>
+    <div class="nav-link" onclick="navigate('proposals')" data-page="proposals">Governance</div>
+    <div class="nav-link" onclick="navigate('wasm')" data-page="wasm">Wasm</div>
+  </div>
+  <div style="position:relative">
+    <div class="nav-search">
+      <span class="nav-search-icon">⌕</span>
+      <input type="text" id="searchInput" placeholder="Search hash / address / height..." autocomplete="off">
+    </div>
+    <div class="search-dropdown" id="searchDropdown"></div>
+  </div>
+</nav>
+
+<div id="app">
+  <!-- ── Dashboard ── -->
+  <div class="page" id="page-dashboard">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Network Overview</div>
+        <div class="page-subtitle">Real-time blockchain statistics</div>
+      </div>
+      <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+    </div>
+    <div class="stats-grid" id="dashStats">
+      <div class="skeleton sk-stat"></div>
+      <div class="skeleton sk-stat"></div>
+      <div class="skeleton sk-stat"></div>
+      <div class="skeleton sk-stat"></div>
+      <div class="skeleton sk-stat"></div>
+      <div class="skeleton sk-stat"></div>
+    </div>
+    <div class="dash-grid">
+      <div class="card" id="dashBlocksCard">
+        <div class="card-header">
+          <div class="card-title"><div class="card-title-icon" style="background:rgba(255,176,32,0.1)">⬡</div> Latest Blocks</div>
+          <div class="badge badge-amber" onclick="navigate('blocks')" style="cursor:pointer">View all →</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Height</th><th>Hash</th><th>Proposer</th><th>Txs</th><th>Time</th></tr></thead>
+            <tbody id="dashBlocksBody"><tr><td colspan="5"><div class="skeleton sk-row"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card" id="dashTxsCard">
+        <div class="card-header">
+          <div class="card-title"><div class="card-title-icon" style="background:rgba(0,200,255,0.1)">⇄</div> Latest Transactions</div>
+          <div class="badge badge-cyan" onclick="navigate('transactions')" style="cursor:pointer">View all →</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Hash</th><th>Height</th><th>Status</th><th>Fee</th><th>Time</th></tr></thead>
+            <tbody id="dashTxsBody"><tr><td colspan="5"><div class="skeleton sk-row"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Blocks ── -->
+  <div class="page" id="page-blocks">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Blocks</div>
+        <div class="page-subtitle" id="blocksSubtitle">Loading...</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Height</th><th>Hash</th><th>Time</th><th>Proposer</th><th>Txs</th></tr></thead>
+          <tbody id="blocksBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="blocksPag"></div>
+    </div>
+  </div>
+
+  <!-- ── Block Detail ── -->
+  <div class="page" id="page-block-detail">
+    <div class="back-btn" onclick="navigate('blocks')">← Back to Blocks</div>
+    <div id="blockDetailContent"></div>
+  </div>
+
+  <!-- ── Transactions ── -->
+  <div class="page" id="page-transactions">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Transactions</div>
+        <div class="page-subtitle" id="txsSubtitle">Loading...</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Hash</th><th>Height</th><th>Type</th><th>Status</th><th>Gas</th><th>Fee</th><th>Time</th></tr></thead>
+          <tbody id="txsBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="txsPag"></div>
+    </div>
+  </div>
+
+  <!-- ── TX Detail ── -->
+  <div class="page" id="page-tx-detail">
+    <div class="back-btn" onclick="navigate('transactions')">← Back to Transactions</div>
+    <div id="txDetailContent"></div>
+  </div>
+
+  <!-- ── Validators ── -->
+  <div class="page" id="page-validators">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Validators</div>
+        <div class="page-subtitle" id="valsSubtitle">Loading...</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div class="badge badge-green" onclick="filterValidators('BOND_STATUS_BONDED')" id="vf-bonded" style="cursor:pointer">Bonded</div>
+        <div class="badge badge-muted" onclick="filterValidators('')" id="vf-all" style="cursor:pointer">All</div>
+      </div>
+    </div>
+    <div class="validators-grid" id="validatorsGrid"></div>
+    <div id="valsPag" style="padding:16px 20px;border-top:1px solid var(--border2)"></div>
+  </div>
+
+  <!-- ── Validator Detail ── -->
+  <div class="page" id="page-validator-detail">
+    <div class="back-btn" onclick="navigate('validators')">← Back to Validators</div>
+    <div id="validatorDetailContent"></div>
+  </div>
+
+  <!-- ── Governance ── -->
+  <div class="page" id="page-proposals">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Governance</div>
+        <div class="page-subtitle" id="propsSubtitle">Loading...</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div class="badge badge-green" onclick="filterProposals('PROPOSAL_STATUS_VOTING_PERIOD')" style="cursor:pointer">Voting</div>
+        <div class="badge badge-amber" onclick="filterProposals('PROPOSAL_STATUS_DEPOSIT_PERIOD')" style="cursor:pointer">Deposit</div>
+        <div class="badge badge-muted" onclick="filterProposals('')" style="cursor:pointer">All</div>
+      </div>
+    </div>
+    <div id="proposalsList"></div>
+    <div id="propsPag" style="margin-top:8px"></div>
+  </div>
+
+  <!-- ── Proposal Detail ── -->
+  <div class="page" id="page-proposal-detail">
+    <div class="back-btn" onclick="navigate('proposals')">← Back to Governance</div>
+    <div id="proposalDetailContent"></div>
+  </div>
+
+  <!-- ── Wasm ── -->
+  <div class="page" id="page-wasm">
+    <div class="page-header">
+      <div>
+        <div class="page-title">CosmWasm</div>
+        <div class="page-subtitle">Smart contracts & code deployments</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="tabs">
+        <div class="tab active" onclick="switchWasmTab('contracts')">Contracts</div>
+        <div class="tab" onclick="switchWasmTab('codes')">Codes</div>
+        <div class="tab" onclick="switchWasmTab('activity')">Activity</div>
+      </div>
+      <div class="tab-content active" id="wasm-tab-contracts">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Contract Address</th><th>Label</th><th>Code ID</th><th>Creator</th><th>Active</th><th>Instantiated</th></tr></thead>
+            <tbody id="wasmContractsBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="wasmContractsPag"></div>
+      </div>
+      <div class="tab-content" id="wasm-tab-codes">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;padding:20px" id="wasmCodesGrid"></div>
+        <div class="pagination" id="wasmCodesPag" style="border-top:1px solid var(--border2)"></div>
+      </div>
+      <div class="tab-content" id="wasm-tab-activity">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Contract</th><th>Label</th><th>Total Executions</th><th>Unique Users</th><th>Last Execution</th></tr></thead>
+            <tbody id="wasmActivityBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Contract Detail ── -->
+  <div class="page" id="page-contract-detail">
+    <div class="back-btn" onclick="navigate('wasm')">← Back to Wasm</div>
+    <div id="contractDetailContent"></div>
+  </div>
+
+  <!-- ── Address ── -->
+  <div class="page" id="page-address">
+    <div class="back-btn" id="addressBackBtn" onclick="history.back()">← Back</div>
+    <div id="addressContent"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ─── Config ────────────────────────────────────────────────── */
+let BASE = () => document.getElementById('apiBase').value.replace(/\/$/, '');
+let currentPage = 'dashboard';
+let state = { blocks: { page: 1 }, txs: { page: 1 }, vals: { page: 1, status: '' }, props: { page: 1, status: '' }, wasmContracts: { page: 1 }, wasmCodes: { page: 1 } };
+
+/* ─── API ───────────────────────────────────────────────────── */
+async function api(path) {
+  const r = await fetch(BASE() + path);
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return r.json();
+}
+
+/* ─── Toast ─────────────────────────────────────────────────── */
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ─── Copy ──────────────────────────────────────────────────── */
+function copy(text) {
+  navigator.clipboard.writeText(text).then(() => toast('Copied!'));
+}
+
+/* ─── Helpers ───────────────────────────────────────────────── */
+function shortHash(h, n = 8) {
+  if (!h) return '—';
+  return h.slice(0, n) + '…' + h.slice(-4);
+}
+function shortAddr(a, n = 12) {
+  if (!a) return '—';
+  if (a.length <= 20) return a;
+  return a.slice(0, n) + '…' + a.slice(-4);
+}
+function fmtTime(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  const now = new Date();
+  const diff = Math.floor((now - d) / 1000);
+  if (diff < 60) return diff + 's ago';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  return d.toLocaleDateString();
+}
+function fmtNum(n) {
+  if (n === null || n === undefined) return '—';
+  return Number(n).toLocaleString();
+}
+function hashLinkEl(hash, action) {
+  return `<span class="hash-link mono" title="${hash}" onclick="${action}">${shortHash(hash)}</span>`;
+}
+function statusBadge(ok) {
+  return ok ? `<span class="badge badge-green">✓ Success</span>` : `<span class="badge badge-red">✗ Failed</span>`;
+}
+function validatorStatusBadge(s) {
+  if (s === 'BOND_STATUS_BONDED') return `<span class="badge badge-green">Bonded</span>`;
+  if (s === 'BOND_STATUS_UNBONDING') return `<span class="badge badge-amber">Unbonding</span>`;
+  return `<span class="badge badge-muted">${s?.replace('BOND_STATUS_','') || '—'}</span>`;
+}
+function proposalStatusBadge(s) {
+  const map = {
+    'PROPOSAL_STATUS_PASSED': 'badge-green',
+    'PROPOSAL_STATUS_REJECTED': 'badge-red',
+    'PROPOSAL_STATUS_VOTING_PERIOD': 'badge-cyan',
+    'PROPOSAL_STATUS_DEPOSIT_PERIOD': 'badge-amber',
+    'PROPOSAL_STATUS_FAILED': 'badge-red',
+  };
+  const label = s?.replace('PROPOSAL_STATUS_', '') || s;
+  return `<span class="badge ${map[s] || 'badge-muted'}">${label}</span>`;
+}
+function avatarColor(name) {
+  const colors = ['#00c8ff20','#9d7cff20','#00e67620','#ffb02020','#ff456020'];
+  let hash = 0;
+  for (let c of (name||'')) hash = c.charCodeAt(0) + ((hash<<5)-hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+function pagination(id, page, total, perPage, cb) {
+  const totalPages = Math.ceil(total / perPage) || 1;
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = `
+    <span class="page-info">Page ${page} of ${totalPages} — ${fmtNum(total)} total</span>
+    <div class="page-btns">
+      <button class="page-btn" onclick="${cb}(1)" ${page<=1?'disabled':''}>«</button>
+      <button class="page-btn" onclick="${cb}(${page-1})" ${page<=1?'disabled':''}>‹ Prev</button>
+      <button class="page-btn active">${page}</button>
+      <button class="page-btn" onclick="${cb}(${page+1})" ${page>=totalPages?'disabled':''}>Next ›</button>
+      <button class="page-btn" onclick="${cb}(${totalPages})" ${page>=totalPages?'disabled':''}>»</button>
+    </div>`;
+}
+
+/* ─── Navigation ────────────────────────────────────────────── */
+function navigate(page, param) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => {
+    l.classList.toggle('active', l.dataset.page === page);
+  });
+  const el = document.getElementById('page-' + page);
+  if (el) el.classList.add('active');
+  currentPage = page;
+  window.scrollTo(0, 0);
+  switch (page) {
+    case 'dashboard': loadDashboard(); break;
+    case 'blocks': loadBlocks(); break;
+    case 'block-detail': loadBlockDetail(param); break;
+    case 'transactions': loadTransactions(); break;
+    case 'tx-detail': loadTxDetail(param); break;
+    case 'validators': loadValidators(); break;
+    case 'validator-detail': loadValidatorDetail(param); break;
+    case 'proposals': loadProposals(); break;
+    case 'proposal-detail': loadProposalDetail(param); break;
+    case 'wasm': loadWasm(); break;
+    case 'contract-detail': loadContractDetail(param); break;
+    case 'address': loadAddress(param); break;
+  }
+}
+
+/* ─── Connection check ──────────────────────────────────────── */
+async function checkConnection() {
+  try {
+    const s = await api('/stats');
+    document.getElementById('connStatus').textContent = 'Connected';
+    document.getElementById('connStatus').style.color = 'var(--green)';
+    return s;
+  } catch {
+    document.getElementById('connStatus').textContent = 'Disconnected — check API URL';
+    document.getElementById('connStatus').style.color = 'var(--red)';
+    return null;
+  }
+}
+
+/* ─── Dashboard ─────────────────────────────────────────────── */
+async function loadDashboard() {
+  try {
+    const [stats, blocks, txs] = await Promise.all([
+      api('/stats'),
+      api('/blocks?page=1&per_page=8'),
+      api('/transactions/recent?page=1&per_page=8'),
+    ]);
+
+    // Stats cards
+    const statsData = [
+      { icon: '⬡', label: 'Latest Block', value: fmtNum(stats.latest_block_height), color: 'linear-gradient(90deg,#ffb020,#ffd060)', accent: 'var(--amber)' },
+      { icon: '⇄', label: 'Total Transactions', value: fmtNum(stats.total_transactions), color: 'linear-gradient(90deg,#00c8ff,#00ffcc)', accent: 'var(--cyan)' },
+      { icon: '◈', label: 'Validators', value: fmtNum(stats.total_validators), color: 'linear-gradient(90deg,#9d7cff,#c4aaff)', accent: 'var(--purple)' },
+      { icon: '⚖', label: 'Proposals', value: fmtNum(stats.total_proposals), color: 'linear-gradient(90deg,#00e676,#69ffa6)', accent: 'var(--green)' },
+      { icon: '◻', label: 'Wasm Codes', value: fmtNum(stats.total_wasm_codes), color: 'linear-gradient(90deg,#ff4560,#ff8fa3)', accent: 'var(--red)' },
+      { icon: '⟐', label: 'Contracts', value: fmtNum(stats.total_wasm_contracts), color: 'linear-gradient(90deg,#ffb020,#9d7cff)', accent: 'var(--amber)' },
+    ];
+    document.getElementById('dashStats').innerHTML = statsData.map(s => `
+      <div class="stat-card" style="--accent-color:${s.color}">
+        <span class="stat-icon">${s.icon}</span>
+        <div class="stat-value" style="color:${s.accent}">${s.value}</div>
+        <div class="stat-label">${s.label}</div>
+      </div>`).join('');
+
+    // Latest blocks
+    document.getElementById('dashBlocksBody').innerHTML = (blocks.data || []).map(b => `
+      <tr onclick="navigate('block-detail','${b.height}')">
+        <td><span class="block-height-badge">${fmtNum(b.height)}</span></td>
+        <td class="hash-link mono" onclick="event.stopPropagation();copy('${b.hash}')" title="${b.hash}">${shortHash(b.hash)}</td>
+        <td><span class="addr-pill"><span class="addr-text">${shortAddr(b.proposer_address,10)}</span></span></td>
+        <td><span class="badge badge-cyan">${b.tx_count}</span></td>
+        <td class="text-muted">${fmtTime(b.time)}</td>
+      </tr>`).join('');
+
+    // Latest txs
+    document.getElementById('dashTxsBody').innerHTML = (txs.data || []).map(t => `
+      <tr onclick="navigate('tx-detail','${t.hash}')">
+        <td class="hash-link mono" onclick="event.stopPropagation();copy('${t.hash}')" title="${t.hash}">${shortHash(t.hash)}</td>
+        <td><span class="block-height-badge" style="color:var(--cyan);background:rgba(0,200,255,0.08);border-color:rgba(0,200,255,0.2)">${fmtNum(t.height)}</span></td>
+        <td>${statusBadge(t.success)}</td>
+        <td class="mono text-muted">${t.fee || '—'}</td>
+        <td class="text-muted">${fmtTime(t.timestamp || t.block_time)}</td>
+      </tr>`).join('');
+  } catch(e) {
+    document.getElementById('dashStats').innerHTML = `<div class="error-box" style="grid-column:1/-1">⚠ ${e.message}</div>`;
+  }
+}
+
+/* ─── Blocks ────────────────────────────────────────────────── */
+async function loadBlocks(pg) {
+  if (pg) state.blocks.page = pg;
+  const p = state.blocks.page;
+  document.getElementById('blocksBody').innerHTML = `<tr><td colspan="5"><div class="skeleton sk-row"></div></td></tr>`.repeat(5);
+  try {
+    const d = await api(`/blocks?page=${p}&per_page=20`);
+    document.getElementById('blocksSubtitle').textContent = `${fmtNum(d.total)} blocks indexed`;
+    document.getElementById('blocksBody').innerHTML = (d.data || []).map(b => `
+      <tr onclick="navigate('block-detail','${b.height}')">
+        <td><span class="block-height-badge">${fmtNum(b.height)}</span></td>
+        <td><span class="hash-link" onclick="event.stopPropagation();copy('${b.hash}')" title="${b.hash}">${shortHash(b.hash,10)}</span></td>
+        <td class="text-muted">${fmtTime(b.time)}</td>
+        <td><span class="addr-pill"><span class="addr-text">${shortAddr(b.proposer_address,14)}</span></span></td>
+        <td><span class="badge badge-${b.tx_count>0?'cyan':'muted'}">${b.tx_count} txs</span></td>
+      </tr>`).join('');
+    pagination('blocksPag', p, d.total, 20, 'loadBlocks');
+  } catch(e) {
+    document.getElementById('blocksBody').innerHTML = `<tr><td colspan="5"><div class="error-box">⚠ ${e.message}</div></td></tr>`;
+  }
+}
+
+/* ─── Block Detail ──────────────────────────────────────────── */
+async function loadBlockDetail(height) {
+  document.getElementById('blockDetailContent').innerHTML = `<div class="skeleton sk-stat"></div>`;
+  try {
+    const [block, txs] = await Promise.all([
+      api(`/blocks/${height}`),
+      api(`/blocks/${height}/transactions`),
+    ]);
+    const txList = txs.transactions || [];
+    document.getElementById('blockDetailContent').innerHTML = `
+      <div class="detail-hero">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <div style="font-family:var(--display);font-size:28px;font-weight:700;color:#fff">Block <span style="color:var(--amber)">#${fmtNum(block.height)}</span></div>
+            <div style="color:var(--muted);font-size:13px;margin-top:4px">${new Date(block.time).toUTCString()}</div>
+          </div>
+          <span class="badge badge-amber">${txList.length} Transactions</span>
+        </div>
+        <div class="detail-fields">
+          <div class="detail-field"><div class="detail-field-label">Block Hash</div><div class="detail-field-value" onclick="copy('${block.hash}')" style="cursor:pointer;color:var(--cyan)">${block.hash}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Proposer</div><div class="detail-field-value" onclick="navigate('address','${block.proposer_address}')" style="cursor:pointer;color:var(--purple)">${block.proposer_address}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Height</div><div class="detail-field-value" style="color:var(--amber)">${fmtNum(block.height)}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Timestamp</div><div class="detail-field-value">${new Date(block.time).toISOString()}</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Transactions <span class="badge badge-cyan" style="margin-left:8px">${txList.length}</span></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Hash</th><th>Status</th><th>Gas Used</th><th>Gas Wanted</th><th>Fee</th></tr></thead>
+            <tbody>${txList.length ? txList.map(t => `
+              <tr onclick="navigate('tx-detail','${t.hash}')">
+                <td class="hash-link" onclick="event.stopPropagation();copy('${t.hash}')">${shortHash(t.hash,12)}</td>
+                <td>${statusBadge(t.success)}</td>
+                <td class="mono">${fmtNum(t.gas_used)}</td>
+                <td class="mono">${fmtNum(t.gas_wanted)}</td>
+                <td class="mono text-muted">${t.fee || '—'}</td>
+              </tr>`).join('') : `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">⬡</div><div class="empty-msg">No transactions in this block</div></div></td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch(e) {
+    document.getElementById('blockDetailContent').innerHTML = `<div class="error-box">⚠ ${e.message}</div>`;
+  }
+}
+
+/* ─── Transactions ──────────────────────────────────────────── */
+async function loadTransactions(pg) {
+  if (pg) state.txs.page = pg;
+  const p = state.txs.page;
+  document.getElementById('txsBody').innerHTML = `<tr><td colspan="7"><div class="skeleton sk-row"></div></td></tr>`.repeat(5);
+  try {
+    const d = await api(`/transactions?page=${p}&per_page=20`);
+    document.getElementById('txsSubtitle').textContent = `${fmtNum(d.total)} transactions indexed`;
+    document.getElementById('txsBody').innerHTML = (d.data || []).map(t => {
+      const types = (() => { try { const m = JSON.parse(t.msg_types||'[]'); return (Array.isArray(m)?m:[]).slice(0,1).map(mt => `<span class="badge badge-purple">${mt.split('.').pop()}</span>`).join(''); } catch { return ''; } })();
+      return `<tr onclick="navigate('tx-detail','${t.hash}')">
+        <td class="hash-link" onclick="event.stopPropagation();copy('${t.hash}')" title="${t.hash}">${shortHash(t.hash,10)}</td>
+        <td><span class="block-height-badge" onclick="event.stopPropagation();navigate('block-detail','${t.height}')">${fmtNum(t.height)}</span></td>
+        <td>${types || '<span class="text-muted">—</span>'}</td>
+        <td>${statusBadge(t.success)}</td>
+        <td class="mono text-muted">${fmtNum(t.gas_used)} / ${fmtNum(t.gas_wanted)}</td>
+        <td class="mono text-muted">${t.fee || '—'}</td>
+        <td class="text-muted">${fmtTime(t.timestamp)}</td>
+      </tr>`;
+    }).join('');
+    pagination('txsPag', p, d.total, 20, 'loadTransactions');
+  } catch(e) {
+    document.getElementById('txsBody').innerHTML = `<tr><td colspan="7"><div class="error-box">⚠ ${e.message}</div></td></tr>`;
+  }
+}
+
+/* ─── TX Detail ─────────────────────────────────────────────── */
+async function loadTxDetail(hash) {
+  document.getElementById('txDetailContent').innerHTML = `<div class="skeleton sk-stat"></div>`;
+  try {
+    const [tx, msgs, events] = await Promise.all([
+      api(`/transactions/${hash}`),
+      api(`/transactions/${hash}/messages`).catch(() => ({ messages: [] })),
+      api(`/transactions/${hash}/events`).catch(() => []),
+    ]);
+    const msgList = msgs.messages || msgs || [];
+    const eventList = Array.isArray(events) ? events : (events.events || []);
+
+    document.getElementById('txDetailContent').innerHTML = `
+      <div class="detail-hero">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+          <div>
+            <div style="font-family:var(--display);font-size:22px;font-weight:700;color:#fff">Transaction</div>
+            <div class="mono" style="color:var(--cyan);font-size:13px;margin-top:6px;word-break:break-all">${tx.hash}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            ${statusBadge(tx.success)}
+            <button onclick="copy('${tx.hash}')" class="page-btn">Copy Hash</button>
+          </div>
+        </div>
+        <div class="detail-fields">
+          <div class="detail-field"><div class="detail-field-label">Block Height</div><div class="detail-field-value"><span class="block-height-badge" onclick="navigate('block-detail','${tx.height}')" style="cursor:pointer">${fmtNum(tx.height)}</span></div></div>
+          <div class="detail-field"><div class="detail-field-label">Timestamp</div><div class="detail-field-value">${fmtTime(tx.timestamp)}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Gas Used / Wanted</div><div class="detail-field-value">${fmtNum(tx.gas_used)} / ${fmtNum(tx.gas_wanted)}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Fee</div><div class="detail-field-value" style="color:var(--amber)">${tx.fee || '—'}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Memo</div><div class="detail-field-value">${tx.memo || '<span class="text-muted">—</span>'}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Code</div><div class="detail-field-value">${tx.code}</div></div>
+          ${tx.log ? `<div class="detail-field" style="grid-column:1/-1"><div class="detail-field-label">Log</div><div class="detail-field-value" style="font-size:11px;color:var(--muted)">${tx.log}</div></div>` : ''}
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="tabs">
+          <div class="tab active" onclick="switchTxTab('messages',event)">Messages <span class="badge badge-purple" style="margin-left:4px">${msgList.length}</span></div>
+          <div class="tab" onclick="switchTxTab('events',event)">Events <span class="badge badge-cyan" style="margin-left:4px">${eventList.length}</span></div>
+        </div>
+        <div class="tab-content active" id="tx-tab-messages">
+          ${msgList.length ? msgList.map((m, i) => `
+            <div style="padding:16px 20px;border-bottom:1px solid var(--border2)">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                <span class="badge badge-purple">MSG ${i}</span>
+                <span class="badge badge-muted">${m.msg_type || '—'}</span>
+              </div>
+              <div class="tx-detail-kv"><div class="tx-kv-key">Sender</div><div class="tx-kv-val" onclick="navigate('address','${m.sender}')" style="cursor:pointer;color:var(--cyan)">${m.sender || '—'}</div></div>
+              <div class="tx-detail-kv"><div class="tx-kv-key">Receiver</div><div class="tx-kv-val" onclick="navigate('address','${m.receiver}')" style="cursor:pointer;color:var(--purple)">${m.receiver || '—'}</div></div>
+              <div class="tx-detail-kv"><div class="tx-kv-key">Amount</div><div class="tx-kv-val" style="color:var(--amber)">${m.amount || '—'} ${m.denom || ''}</div></div>
+            </div>`).join('') : `<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-msg">No messages</div></div>`}
+        </div>
+        <div class="tab-content" id="tx-tab-events">
+          ${eventList.length ? eventList.map((e, i) => `
+            <div style="padding:16px 20px;border-bottom:1px solid var(--border2)">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <span class="badge badge-cyan">EVENT ${e.event_index ?? i}</span>
+                <span class="badge badge-muted">${e.event_type || '—'}</span>
+              </div>
+              <div class="json-view">${renderJSONSimple(e.attributes)}</div>
+            </div>`).join('') : `<div class="empty-state"><div class="empty-icon">⚡</div><div class="empty-msg">No events</div></div>`}
+        </div>
+      </div>`;
+  } catch(e) {
+    document.getElementById('txDetailContent').innerHTML = `<div class="error-box">⚠ ${e.message}</div>`;
+  }
+}
+
+function switchTxTab(name, ev) {
+  const card = ev.target.closest('.card');
+  card.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  card.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  ev.target.classList.add('active');
+  card.querySelector('#tx-tab-' + name)?.classList.add('active');
+}
+
+/* ─── Validators ────────────────────────────────────────────── */
+async function loadValidators(pg) {
+  if (pg) state.vals.page = pg;
+  const p = state.vals.page;
+  const st = state.vals.status;
+  document.getElementById('validatorsGrid').innerHTML = Array(9).fill(`<div class="skeleton" style="height:200px;border-radius:12px"></div>`).join('');
+  try {
+    const url = `/validators?page=${p}&per_page=18${st ? '&status=' + st : ''}`;
+    const d = await api(url);
+    document.getElementById('valsSubtitle').textContent = `${fmtNum(d.total)} validators`;
+    const totalPower = (d.data || []).reduce((s, v) => s + (v.voting_power || 0), 0) || 1;
+
+    document.getElementById('validatorsGrid').innerHTML = (d.data || []).map((v, i) => {
+      const pct = ((v.voting_power || 0) / totalPower * 100).toFixed(1);
+      const initial = (v.moniker || '?')[0].toUpperCase();
+      return `<div class="validator-card" onclick="navigate('validator-detail','${v.operator_address}')">
+        <div class="validator-rank">#${(p-1)*18 + i + 1}</div>
+        <div class="validator-avatar" style="background:${avatarColor(v.moniker)}">${initial}</div>
+        <div class="validator-name">${v.moniker || 'Unknown'}</div>
+        <div class="validator-addr">${shortAddr(v.operator_address, 18)}</div>
+        <div style="margin-bottom:10px">${validatorStatusBadge(v.status)} ${v.jailed ? '<span class="badge badge-red">Jailed</span>' : ''}</div>
+        <div class="validator-stats">
+          <div class="validator-stat-item"><div class="validator-stat-label">Voting Power</div><div class="validator-stat-value">${fmtNum(v.voting_power)}</div></div>
+          <div class="validator-stat-item"><div class="validator-stat-label">Commission</div><div class="validator-stat-value">${v.commission_rate || '—'}</div></div>
+        </div>
+        <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:right">${pct}% voting power</div>
+      </div>`;
+    }).join('');
+    const pagEl = document.getElementById('valsPag');
+    pagEl.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between">
+      <span class="page-info">Page ${p} of ${Math.ceil(d.total/18)} — ${fmtNum(d.total)} total</span>
+      <div class="page-btns">
+        <button class="page-btn" onclick="loadValidators(${p-1})" ${p<=1?'disabled':''}>‹ Prev</button>
+        <button class="page-btn active">${p}</button>
+        <button class="page-btn" onclick="loadValidators(${p+1})" ${p>=Math.ceil(d.total/18)?'disabled':''}>Next ›</button>
+      </div></div>`;
+  } catch(e) {
+    document.getElementById('validatorsGrid').innerHTML = `<div class="error-box" style="grid-column:1/-1">⚠ ${e.message}</div>`;
+  }
+}
+
+function filterValidators(status) {
+  state.vals.status = status;
+  state.vals.page = 1;
+  loadValidators();
+}
+
+/* ─── Validator Detail ──────────────────────────────────────── */
+async function loadValidatorDetail(address) {
+  document.getElementById('validatorDetailContent').innerHTML = `<div class="skeleton sk-stat"></div>`;
+  try {
+    const [v, stats, hist] = await Promise.all([
+      api(`/validators/${address}`),
+      api(`/validators/${address}/stats`).catch(() => null),
+      api(`/validators/${address}/history?page=1&per_page=10`).catch(() => ({ data: [] })),
+    ]);
+    document.getElementById('validatorDetailContent').innerHTML = `
+      <div class="detail-hero" style="margin-bottom:20px">
+        <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap">
+          <div class="validator-avatar" style="background:${avatarColor(v.moniker)};width:60px;height:60px;border-radius:14px;font-size:26px">${(v.moniker||'?')[0].toUpperCase()}</div>
+          <div style="flex:1">
+            <div style="font-family:var(--display);font-size:26px;font-weight:700;color:#fff">${v.moniker}</div>
+            <div class="mono" style="color:var(--muted);font-size:12px;margin:6px 0">${v.operator_address}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              ${validatorStatusBadge(v.status)}
+              ${v.jailed ? '<span class="badge badge-red">⚠ Jailed</span>' : ''}
+              ${v.website ? `<a href="${v.website}" target="_blank" class="badge badge-cyan" style="text-decoration:none">🌐 Website</a>` : ''}
+            </div>
+          </div>
+          ${stats ? `<div style="text-align:right"><div style="font-family:var(--display);font-size:28px;font-weight:700;color:var(--cyan)">${fmtNum(stats.blocks_proposed)}</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px">Blocks Proposed</div></div>` : ''}
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Details</div></div>
+          <div>
+            ${[
+              ['Consensus Address', v.consensus_address],
+              ['Voting Power', fmtNum(v.voting_power)],
+              ['Tokens', v.tokens],
+              ['Delegator Shares', v.delegator_shares],
+              ['Commission Rate', v.commission_rate],
+              ['Max Commission', v.commission_max_rate],
+              ['Min Self Delegation', v.min_self_delegation],
+              ['Added At Height', fmtNum(v.added_at_height)],
+            ].map(([k,val]) => `<div class="tx-detail-kv"><div class="tx-kv-key">${k}</div><div class="tx-kv-val">${val || '—'}</div></div>`).join('')}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Description</div></div>
+          <div style="padding:16px 20px">
+            <div style="font-size:13px;color:var(--muted);line-height:1.7">${v.details || 'No description provided.'}</div>
+            ${v.identity ? `<div style="margin-top:12px"><span class="badge badge-purple">Identity: ${v.identity}</span></div>` : ''}
+            ${v.security_contact ? `<div style="margin-top:8px;font-size:12px;color:var(--muted)">Security: ${v.security_contact}</div>` : ''}
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">History</div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Height</th><th>Change Type</th><th>Status</th><th>Old Power</th><th>New Power</th><th>Time</th></tr></thead>
+            <tbody>${(hist.data||[]).map(h => `
+              <tr>
+                <td><span class="block-height-badge">${fmtNum(h.height)}</span></td>
+                <td><span class="badge badge-amber">${h.change_type}</span></td>
+                <td>${validatorStatusBadge(h.status)}</td>
+                <td class="mono">${fmtNum(h.old_power)}</td>
+                <td class="mono">${fmtNum(h.new_power)}</td>
+                <td class="text-muted">${fmtTime(h.timestamp)}</td>
+              </tr>`).join('') || `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-msg">No history</div></div></td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch(e) {
+    document.getElementById('validatorDetailContent').innerHTML = `<div class="error-box">⚠ ${e.message}</div>`;
+  }
+}
+
+/* ─── Proposals ─────────────────────────────────────────────── */
+async function loadProposals(pg) {
+  if (pg) state.props.page = pg;
+  const p = state.props.page;
+  const st = state.props.status;
+  document.getElementById('proposalsList').innerHTML = `<div class="skeleton" style="height:100px;border-radius:12px;margin-bottom:12px"></div>`.repeat(3);
+  try {
+    const url = `/proposals?page=${p}&per_page=10${st ? '&status=' + st : ''}`;
+    const d = await api(url);
+    document.getElementById('propsSubtitle').textContent = `${fmtNum(d.total)} proposals`;
+    document.getElementById('proposalsList').innerHTML = (d.data || []).map(pr => {
+      const yes = parseFloat(pr.yes_votes) || 0;
+      const no = parseFloat(pr.no_votes) || 0;
+      const veto = parseFloat(pr.no_with_veto_votes) || 0;
+      const abstain = parseFloat(pr.abstain_votes) || 0;
+      const total = yes + no + veto + abstain || 1;
+      const yesPct = (yes/total*100).toFixed(1);
+      const noPct = (no/total*100).toFixed(1);
+      return `<div class="proposal-card" onclick="navigate('proposal-detail','${pr.proposal_id}')">
+        <div class="proposal-id-badge">${pr.proposal_id}</div>
+        <div class="proposal-body">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+            ${proposalStatusBadge(pr.status)}
+            <span class="badge badge-muted">${pr.proposal_type?.split('.').pop() || '—'}</span>
+          </div>
+          <div class="proposal-title">${pr.title}</div>
+          <div class="proposal-desc">${pr.description}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div><div class="vote-bar-label"><span style="color:var(--green)">YES</span><span>${yesPct}%</span></div><div class="progress-bar"><div class="progress-bar-fill" style="width:${yesPct}%;background:var(--green)"></div></div></div>
+            <div><div class="vote-bar-label"><span style="color:var(--red)">NO</span><span>${noPct}%</span></div><div class="progress-bar"><div class="progress-bar-fill" style="width:${noPct}%;background:var(--red)"></div></div></div>
+          </div>
+          <div style="margin-top:10px;font-size:11px;color:var(--muted)">Submitted ${fmtTime(pr.submit_time)} · Voting ends ${fmtTime(pr.voting_end_time)}</div>
+        </div>
+      </div>`;
+    }).join('') || `<div class="empty-state"><div class="empty-icon">⚖</div><div class="empty-msg">No proposals found</div></div>`;
+    pagination('propsPag', p, d.total, 10, 'loadProposals');
+  } catch(e) {
+    document.getElementById('proposalsList').innerHTML = `<div class="error-box">⚠ ${e.message}</div>`;
+  }
+}
+
+function filterProposals(status) {
+  state.props.status = status;
+  state.props.page = 1;
+  loadProposals();
+}
+
+/* ─── Proposal Detail ───────────────────────────────────────── */
+async function loadProposalDetail(id) {
+  document.getElementById('proposalDetailContent').innerHTML = `<div class="skeleton sk-stat"></div>`;
+  try {
+    const [pr, votes] = await Promise.all([
+      api(`/proposals/${id}`),
+      api(`/proposals/${id}/votes?page=1&per_page=20`).catch(() => ({ data: [], total: 0 })),
+    ]);
+    const yes = parseFloat(pr.yes_votes)||0;
+    const no = parseFloat(pr.no_votes)||0;
+    const veto = parseFloat(pr.no_with_veto_votes)||0;
+    const abstain = parseFloat(pr.abstain_votes)||0;
+    const total = yes+no+veto+abstain||1;
+    document.getElementById('proposalDetailContent').innerHTML = `
+      <div class="detail-hero" style="margin-bottom:20px">
+        <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+          <div class="proposal-id-badge" style="font-size:24px;width:64px;height:64px">${pr.proposal_id}</div>
+          <div style="flex:1">
+            <div style="font-family:var(--display);font-size:22px;font-weight:700;color:#fff;margin-bottom:8px">${pr.title}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">${proposalStatusBadge(pr.status)} <span class="badge badge-muted">${pr.proposal_type?.split('.').pop()}</span></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+          ${[['YES',yes,total,'var(--green)'],['NO',no,total,'var(--red)'],['VETO',veto,total,'var(--amber)'],['ABSTAIN',abstain,total,'var(--muted)']].map(([label,val,tot,color]) => `
+            <div class="detail-field">
+              <div class="detail-field-label">${label}</div>
+              <div style="font-family:var(--display);font-size:22px;font-weight:700;color:${color}">${(val/tot*100).toFixed(1)}%</div>
+              <div class="progress-bar" style="margin-top:8px"><div class="progress-bar-fill" style="width:${(val/tot*100).toFixed(1)}%;background:${color}"></div></div>
+            </div>`).join('')}
+        </div>
+        <div class="detail-fields">
+          <div class="detail-field"><div class="detail-field-label">Proposer</div><div class="detail-field-value" style="color:var(--purple);cursor:pointer" onclick="navigate('address','${pr.proposer}')">${pr.proposer}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Submit Time</div><div class="detail-field-value">${fmtTime(pr.submit_time)}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Voting Period</div><div class="detail-field-value">${fmtTime(pr.voting_start_time)} → ${fmtTime(pr.voting_end_time)}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Total Deposit</div><div class="detail-field-value" style="color:var(--amber)">${pr.total_deposit} ${pr.deposit_denom}</div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><div class="card-title">Description</div></div>
+        <div style="padding:20px;color:var(--muted);font-size:13px;line-height:1.8;white-space:pre-wrap">${pr.description}</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Votes <span class="badge badge-cyan" style="margin-left:8px">${fmtNum(votes.total)}</span></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Voter</th><th>Option</th><th>Height</th><th>TX Hash</th><th>Time</th></tr></thead>
+            <tbody>${(votes.data||[]).map(v => `
+              <tr>
+                <td class="hash-link" onclick="navigate('address','${v.voter}')">${shortAddr(v.voter,14)}</td>
+                <td>${v.option === 'VOTE_OPTION_YES' ? '<span class="badge badge-green">YES</span>' : v.option === 'VOTE_OPTION_NO' ? '<span class="badge badge-red">NO</span>' : v.option === 'VOTE_OPTION_NO_WITH_VETO' ? '<span class="badge badge-amber">VETO</span>' : '<span class="badge badge-muted">ABSTAIN</span>'}</td>
+                <td><span class="block-height-badge">${fmtNum(v.height)}</span></td>
+                <td class="hash-link" onclick="navigate('tx-detail','${v.tx_hash}')">${shortHash(v.tx_hash)}</td>
+                <td class="text-muted">${fmtTime(v.timestamp)}</td>
+              </tr>`).join('') || `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🗳</div><div class="empty-msg">No votes yet</div></div></td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch(e) {
+    document.getElementById('proposalDetailContent').innerHTML = `<div class="error-box">⚠ ${e.message}</div>`;
+  }
+}
+
+/* ─── Wasm ──────────────────────────────────────────────────── */
+async function loadWasm() {
+  loadWasmContracts();
+  loadWasmCodes();
+  loadWasmActivity();
+}
+
+async function loadWasmContracts(pg) {
+  if (pg) state.wasmContracts.page = pg;
+  const p = state.wasmContracts.page;
+  document.getElementById('wasmContractsBody').innerHTML = `<tr><td colspan="6"><div class="skeleton sk-row"></div></td></tr>`.repeat(5);
+  try {
+    const d = await api(`/wasm/contracts?page=${p}&per_page=20`);
+    document.getElementById('wasmContractsBody').innerHTML = (d.data || []).map(c => `
+      <tr onclick="navigate('contract-detail','${c.contract_address}')">
+        <td class="hash-link" onclick="event.stopPropagation();copy('${c.contract_address}')">${shortAddr(c.contract_address,20)}</td>
+        <td style="color:var(--text)">${c.label || '—'}</td>
+        <td><span class="badge badge-purple">${c.code_id}</span></td>
+        <td class="hash-link" onclick="event.stopPropagation();navigate('address','${c.creator}')">${shortAddr(c.creator,14)}</td>
+        <td>${c.is_active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-muted">Inactive</span>'}</td>
+        <td class="text-muted">${fmtTime(c.instantiated_at_time)}</td>
+      </tr>`).join('');
+    pagination('wasmContractsPag', p, d.total, 20, 'loadWasmContracts');
+  } catch(e) {
+    document.getElementById('wasmContractsBody').innerHTML = `<tr><td colspan="6"><div class="error-box">⚠ ${e.message}</div></td></tr>`;
+  }
+}
+
+async function loadWasmCodes(pg) {
+  if (pg) state.wasmCodes.page = pg;
+  const p = state.wasmCodes.page;
+  document.getElementById('wasmCodesGrid').innerHTML = Array(6).fill(`<div class="skeleton" style="height:100px;border-radius:10px"></div>`).join('');
+  try {
+    const d = await api(`/wasm/codes?page=${p}&per_page=18`);
+    document.getElementById('wasmCodesGrid').innerHTML = (d.data || []).map(c => `
+      <div class="wasm-code-card">
+        <div class="wasm-code-icon">◻</div>
+        <div>
+          <div class="wasm-code-id"># ${c.code_id}</div>
+          <div class="wasm-code-label">by ${shortAddr(c.creator, 14)}</div>
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+            <span class="badge badge-muted">${c.permission || 'Unrestricted'}</span>
+            <span class="badge badge-purple" onclick="copy('${c.checksum}')" style="cursor:pointer" title="${c.checksum}">${shortHash(c.checksum,8)}</span>
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:6px">${fmtTime(c.uploaded_time)}</div>
+        </div>
+      </div>`).join('');
+    pagination('wasmCodesPag', p, d.total, 18, 'loadWasmCodes');
+  } catch(e) {
+    document.getElementById('wasmCodesGrid').innerHTML = `<div class="error-box">⚠ ${e.message}</div>`;
+  }
+}
+
+async function loadWasmActivity() {
+  try {
+    const d = await api(`/wasm/activity?page=1&per_page=20`);
+    document.getElementById('wasmActivityBody').innerHTML = (d.data || []).map(a => `
+      <tr onclick="navigate('contract-detail','${a.contract_address}')">
+        <td class="hash-link">${shortAddr(a.contract_address, 20)}</td>
+        <td>${a.label || '—'}</td>
+        <td><span class="badge badge-cyan">${fmtNum(a.total_executions)}</span></td>
+        <td><span class="badge badge-purple">${fmtNum(a.unique_users)}</span></td>
+        <td class="text-muted">${fmtTime(a.last_execution)}</td>
+      </tr>`).join('');
+  } catch(e) {
+    document.getElementById('wasmActivityBody').innerHTML = `<tr><td colspan="5"><div class="error-box">⚠ ${e.message}</div></td></tr>`;
+  }
+}
+
+function switchWasmTab(tab) {
+  document.querySelectorAll('#page-wasm .tab').forEach((t,i) => t.classList.toggle('active', ['contracts','codes','activity'][i] === tab));
+  document.querySelectorAll('#page-wasm .tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('wasm-tab-' + tab)?.classList.add('active');
+}
+
+/* ─── Contract Detail ───────────────────────────────────────── */
+async function loadContractDetail(address) {
+  document.getElementById('contractDetailContent').innerHTML = `<div class="skeleton sk-stat"></div>`;
+  try {
+    const [contract, execs] = await Promise.all([
+      api(`/wasm/contracts/${address}`),
+      api(`/wasm/contracts/${address}/executions?page=1&per_page=10`).catch(() => ({ data: [], total: 0 })),
+    ]);
+    document.getElementById('contractDetailContent').innerHTML = `
+      <div class="detail-hero" style="margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+          <div class="wasm-code-icon" style="width:52px;height:52px;font-size:22px">⟐</div>
+          <div>
+            <div style="font-family:var(--display);font-size:22px;font-weight:700;color:#fff">${contract.label || 'Unnamed Contract'}</div>
+            <div class="mono" style="color:var(--cyan);font-size:12px;margin-top:4px">${contract.contract_address}</div>
+          </div>
+          <div style="margin-left:auto">${contract.is_active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-muted">Inactive</span>'}</div>
+        </div>
+        <div class="detail-fields">
+          <div class="detail-field"><div class="detail-field-label">Code ID</div><div class="detail-field-value" style="color:var(--purple)">${contract.code_id}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Creator</div><div class="detail-field-value" style="color:var(--cyan);cursor:pointer" onclick="navigate('address','${contract.creator}')">${shortAddr(contract.creator,20)}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Admin</div><div class="detail-field-value">${contract.admin || '<span class="text-muted">None</span>'}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Instantiate TX</div><div class="detail-field-value hash-link" onclick="navigate('tx-detail','${contract.instantiate_tx_hash}')">${shortHash(contract.instantiate_tx_hash, 12)}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Instantiated At</div><div class="detail-field-value">${fmtTime(contract.instantiated_at_time)} (height ${fmtNum(contract.instantiated_at_height)})</div></div>
+          <div class="detail-field"><div class="detail-field-label">Current Code ID</div><div class="detail-field-value">${contract.current_code_id}</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Recent Executions <span class="badge badge-cyan" style="margin-left:8px">${fmtNum(execs.total)}</span></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>TX Hash</th><th>Sender</th><th>Action</th><th>Gas Used</th><th>Status</th><th>Time</th></tr></thead>
+            <tbody>${(execs.data||[]).map(e => `
+              <tr onclick="navigate('tx-detail','${e.tx_hash}')">
+                <td class="hash-link" onclick="event.stopPropagation();copy('${e.tx_hash}')">${shortHash(e.tx_hash,10)}</td>
+                <td class="hash-link" onclick="event.stopPropagation();navigate('address','${e.sender}')">${shortAddr(e.sender,14)}</td>
+                <td><span class="badge badge-purple">${e.execute_action || '—'}</span></td>
+                <td class="mono">${fmtNum(e.gas_used)}</td>
+                <td>${statusBadge(e.success)}</td>
+                <td class="text-muted">${fmtTime(e.timestamp)}</td>
+              </tr>`).join('') || `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">⟐</div><div class="empty-msg">No executions found</div></div></td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch(e) {
+    document.getElementById('contractDetailContent').innerHTML = `<div class="error-box">⚠ ${e.message}</div>`;
+  }
+}
+
+/* ─── Address ───────────────────────────────────────────────── */
+async function loadAddress(address) {
+  document.getElementById('addressContent').innerHTML = `<div class="skeleton sk-stat"></div>`;
+  try {
+    const [balances, txs] = await Promise.all([
+      api(`/addresses/${address}/balances`).catch(() => ({ balances: [] })),
+      api(`/addresses/${address}/transactions?page=1&per_page=15`).catch(() => ({ data: [], total: 0 })),
+    ]);
+    document.getElementById('addressContent').innerHTML = `
+      <div class="detail-hero" style="margin-bottom:20px">
+        <div style="font-family:var(--display);font-size:22px;font-weight:700;color:#fff;margin-bottom:8px">Address</div>
+        <div class="mono" style="color:var(--cyan);font-size:13px;word-break:break-all;cursor:pointer" onclick="copy('${address}')">${address}</div>
+        <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px">
+          ${(balances.balances||[]).map(b => `<div class="detail-field" style="min-width:160px"><div class="detail-field-label">${b.denom}</div><div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--amber)">${b.amount}</div></div>`).join('') || '<div style="color:var(--muted);font-size:13px">No balances found</div>'}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Transactions <span class="badge badge-cyan" style="margin-left:8px">${fmtNum(txs.total)}</span></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>TX Hash</th><th>Height</th><th>Time</th></tr></thead>
+            <tbody>${(txs.data||[]).map(t => `
+              <tr onclick="navigate('tx-detail','${t.tx_hash}')">
+                <td class="hash-link">${shortHash(t.tx_hash, 12)}</td>
+                <td><span class="block-height-badge">${fmtNum(t.height)}</span></td>
+                <td class="text-muted">${fmtTime(t.created_at)}</td>
+              </tr>`).join('') || `<tr><td colspan="3"><div class="empty-state"><div class="empty-icon">⇄</div><div class="empty-msg">No transactions found</div></div></td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch(e) {
+    document.getElementById('addressContent').innerHTML = `<div class="error-box">⚠ ${e.message}</div>`;
+  }
+}
+
+/* ─── Search ────────────────────────────────────────────────── */
+let searchTimer;
+document.getElementById('searchInput').addEventListener('input', e => {
+  clearTimeout(searchTimer);
+  const q = e.target.value.trim();
+  if (!q || q.length < 3) { document.getElementById('searchDropdown').classList.remove('show'); return; }
+  searchTimer = setTimeout(() => doSearch(q), 400);
+});
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch(e.target.value.trim());
+  if (e.key === 'Escape') document.getElementById('searchDropdown').classList.remove('show');
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.nav-search') && !e.target.closest('.search-dropdown')) {
+    document.getElementById('searchDropdown').classList.remove('show');
+  }
+});
+
+async function doSearch(q) {
+  if (!q) return;
+  try {
+    const d = await api(`/search?q=${encodeURIComponent(q)}`);
+    const results = d.results || [];
+    if (!results.length) {
+      document.getElementById('searchDropdown').innerHTML = `<div class="search-result-item"><span style="color:var(--muted);font-size:12px">No results for "${q}"</span></div>`;
+      document.getElementById('searchDropdown').classList.add('show');
+      return;
+    }
+    document.getElementById('searchDropdown').innerHTML = results.map(r => `
+      <div class="search-result-item" onclick="handleSearchResult('${r.type}','${r.value}')">
+        <span class="search-result-type type-${r.type}">${r.type}</span>
+        <span class="search-result-value">${r.value}</span>
+      </div>`).join('');
+    document.getElementById('searchDropdown').classList.add('show');
+  } catch {
+    document.getElementById('searchDropdown').innerHTML = `<div class="search-result-item"><span style="color:var(--red);font-size:12px">Search failed</span></div>`;
+    document.getElementById('searchDropdown').classList.add('show');
+  }
+}
+
+function handleSearchResult(type, value) {
+  document.getElementById('searchDropdown').classList.remove('show');
+  document.getElementById('searchInput').value = '';
+  const map = { block: 'block-detail', transaction: 'tx-detail', validator: 'validator-detail', contract: 'contract-detail', address: 'address' };
+  navigate(map[type] || type, value);
+}
+
+/* ─── JSON render ───────────────────────────────────────────── */
+function renderJSONSimple(obj) {
+  if (obj === null || obj === undefined) return '<span class="jv-null">null</span>';
+  if (typeof obj === 'string') {
+    try { obj = JSON.parse(obj); } catch { return `<span class="jv-str">"${obj}"</span>`; }
+  }
+  if (Array.isArray(obj)) {
+    return '[' + obj.map(v => renderJSONSimple(v)).join(', ') + ']';
+  }
+  if (typeof obj === 'object') {
+    return '{' + Object.entries(obj).map(([k,v]) => `<span class="jk">"${k}"</span>: ${renderJSONSimple(v)}`).join(', ') + '}';
+  }
+  if (typeof obj === 'number') return `<span class="jv-num">${obj}</span>`;
+  if (typeof obj === 'boolean') return `<span class="jv-bool">${obj}</span>`;
+  return String(obj);
+}
+
+/* ─── Init ──────────────────────────────────────────────────── */
+document.getElementById('apiBase').addEventListener('change', () => {
+  checkConnection();
+  navigate(currentPage);
+});
+checkConnection();
+navigate('dashboard');
+</script>
+</body>
+</html>
